@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสุ่มชื่อผู้โชคดี</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter & Sarabun -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Sarabun:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* Use Sarabun for Thai and Inter for English/numbers */
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+        }
+
+        /* Custom colors from the request */
+        :root {
+            --bs-blue: #3c8cf3;
+            --bs-green: #05be8a;
+            --bs-purple: #745af2;
+            --bs-red: #ef5350;
+        }
+
+        /* Applying custom colors to Tailwind classes */
+        .bg-custom-blue { background-color: var(--bs-blue); }
+        .hover\:bg-custom-blue-dark:hover { background-color: #2a78d3; }
+        .bg-custom-green { background-color: var(--bs-green); }
+        .text-custom-green { color: var(--bs-green); }
+        .bg-custom-purple { background-color: var(--bs-purple); }
+        .ring-custom-purple { ring-color: var(--bs-purple); }
+        .text-custom-red { color: var(--bs-red); }
+
+        /* Animation for the winner text pop-in */
+        @keyframes pop-in {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in {
+            animation: pop-in 0.5s ease-out forwards;
+        }
+
+        /* NEW: Animation for the glowing/pulsing effect on the winner's name */
+        @keyframes pulse-glow {
+            0%, 100% {
+                text-shadow: 0 0 7px rgba(252, 211, 77, 0.5), 0 0 15px rgba(236, 72, 153, 0.5);
+            }
+            50% {
+                text-shadow: 0 0 15px rgba(252, 211, 77, 0.8), 0 0 30px rgba(236, 72, 153, 0.8);
+            }
+        }
+        .animate-pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        /* Styling for the spinning text effect */
+        #winner-name {
+            min-height: 80px; /* Reserve space to prevent layout shift */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen transition-colors duration-300">
+
+    <div class="w-full max-w-md mx-auto p-4">
+        <div id="app-container" class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 sm:p-8 transition-all duration-300">
+
+            <!-- Main screen for input -->
+            <div id="main-content">
+                <div class="text-center mb-6">
+                    <h1 class="text-3xl font-bold text-custom-purple">สุ่มชื่อผู้โชคดี</h1>
+                    <p class="text-gray-500 dark:text-gray-400 mt-2">ใส่รายชื่อแล้วกดปุ่มเพื่อสุ่มรางวัล</p>
+                </div>
+
+                <div>
+                    <label for="name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">รายชื่อ (แต่ละชื่อขึ้นบรรทัดใหม่)</label>
+                    <textarea id="name-input" rows="8" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-custom-purple focus:border-transparent transition" placeholder="สมชาย&#10;สมศรี&#10;สมศักดิ์&#10;สมใจ">สมชาย ใจดี
+สมศรี มีสุข
+สมศักดิ์ รักไทย
+สมใจ แสนดี
+มานะ บากบั่น
+ปิติ ยินดี
+วีระ กล้าหาญ
+ชูใจ ใฝ่รู้</textarea>
+                </div>
+
+                <div class="mt-6">
+                    <button id="draw-button" class="w-full text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 bg-custom-purple hover:bg-opacity-90 shadow-lg">
+                        <span class="text-lg">สุ่มรางวัล!</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Result screen -->
+            <div id="result-content" class="hidden text-center">
+                <h2 id="congrats-message" class="text-2xl font-semibold text-gray-500 dark:text-gray-400">และผู้โชคดีได้แก่...</h2>
+                <!-- UPDATED: New gradient color for better visibility -->
+                <div id="winner-name" class="my-6 text-4xl sm:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-500">
+                    <!-- Winner's name will be injected here -->
+                </div>
+                <p id="prize-message" class="text-xl text-custom-green font-bold hidden">
+                    🎉 ยินดีด้วย! คุณได้รับรางวัล 🎉
+                </p>
+                <div class="mt-8">
+                    <button id="reset-button" class="w-full bg-custom-blue hover:bg-custom-blue-dark text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-lg">
+                        สุ่มอีกครั้ง
+                    </button>
+                </div>
+            </div>
+
+        </div>
+        <footer class="text-center mt-6 text-gray-500 dark:text-gray-400 text-sm">
+            <p>สร้างโดย Gemini</p>
+        </footer>
+    </div>
+    
+    <!-- Error Modal -->
+    <div id="error-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 text-center max-w-sm mx-auto">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg class="h-6 w-6 text-custom-red" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h3 class="text-lg leading-6 font-bold text-gray-900 dark:text-gray-100 mt-4">เกิดข้อผิดพลาด</h3>
+            <div class="mt-2">
+                <p class="text-sm text-gray-600 dark:text-gray-300">กรุณาใส่รายชื่ออย่างน้อยหนึ่งชื่อก่อนทำการสุ่ม</p>
+            </div>
+            <div class="mt-5">
+                <button id="close-modal-button" class="w-full bg-custom-red text-white font-semibold py-2 px-4 rounded-lg hover:bg-opacity-90">
+                    ตกลง
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const mainContent = document.getElementById('main-content');
+        const resultContet = document.getElementById('result-content');
+        const drawButton = document.getElementById('draw-button');
+        const resetButton = document.getElementById('reset-button');
+        const nameInput = document.getElementById('name-input');
+        const winnerNameEl = document.getElementById('winner-name');
+        const prizeMessage = document.getElementById('prize-message');
+        const congratsMessage = document.getElementById('congrats-message');
+        
+        // Modal Elements
+        const errorModal = document.getElementById('error-modal');
+        const closeModalButton = document.getElementById('close-modal-button');
+
+        let spinningInterval;
+
+        // --- Event Listeners ---
+        
+        drawButton.addEventListener('click', () => {
+            const names = nameInput.value.split('\n').map(name => name.trim()).filter(name => name !== '');
+
+            if (names.length === 0) {
+                errorModal.classList.remove('hidden');
+                return;
+            }
+
+            // Switch views
+            mainContent.classList.add('hidden');
+            resultContet.classList.remove('hidden');
+            
+            // Hide final messages and animations initially
+            prizeMessage.classList.add('hidden');
+            prizeMessage.classList.remove('animate-pop-in');
+            winnerNameEl.classList.remove('animate-pop-in', 'animate-pulse-glow'); // UPDATED: Reset glow animation
+            congratsMessage.textContent = 'และผู้โชคดีได้แก่...';
+
+
+            // Start the spinning animation effect
+            let spinCount = 0;
+            spinningInterval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * names.length);
+                winnerNameEl.textContent = names[randomIndex];
+                spinCount++;
+            }, 100);
+
+            // Stop spinning and show the winner after 3 seconds
+            setTimeout(() => {
+                clearInterval(spinningInterval);
+
+                // Pick the final winner
+                const winner = names[Math.floor(Math.random() * names.length)];
+                
+                // Display the winner with animation
+                winnerNameEl.textContent = winner;
+                winnerNameEl.classList.add('animate-pop-in');
+                
+                // UPDATED: Add the new pulse-glow animation
+                winnerNameEl.classList.add('animate-pulse-glow');
+                
+                // Show the prize message with animation
+                prizeMessage.classList.remove('hidden');
+                prizeMessage.classList.add('animate-pop-in');
+                congratsMessage.textContent = 'ผู้โชคดีคือ';
+
+
+                // Trigger confetti effect
+                launchConfetti();
+
+            }, 3000); // 3 seconds of spinning
+        });
+
+        resetButton.addEventListener('click', () => {
+            // Switch views back
+            resultContet.classList.add('hidden');
+            mainContent.classList.remove('hidden');
+
+            // Clear the winner name and reset animations
+            winnerNameEl.textContent = '';
+            // UPDATED: Remove glow animation on reset
+            winnerNameEl.classList.remove('animate-pop-in', 'animate-pulse-glow');
+            prizeMessage.classList.add('hidden');
+        });
+
+        closeModalButton.addEventListener('click', () => {
+            errorModal.classList.add('hidden');
+        });
+
+        // --- Confetti Function ---
+        function launchConfetti() {
+            const duration = 5 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                const particleCount = 50 * (timeLeft / duration);
+                
+                // Launch confetti from both sides
+                confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+                confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+            }, 250);
+        }
+
+    </script>
+</body>
+</html>
